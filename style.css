@@ -1,0 +1,262 @@
+body {
+    background-image: url("image/-min.jpg");
+    font-family: 'Sunflower', sans-serif;
+}
+
+div#leftSide, div#rightSide {
+    height: 80%;
+    width: 42%;
+    position: absolute;
+    top: 10%;
+}
+
+div#leftSide {
+    left: 5%;
+}
+div#leftSide > #display_1 > .innerBox > div.inputBox {
+    margin-bottom: 10px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.616);
+    width: 100%;
+    font-size: 1vw;
+    
+}
+div#leftSide > #display_1 > .innerBox > div.inputBox:last-child {
+    margin-bottom: 0px;
+}
+
+div#rightSide {
+    right: 5%;
+}
+div#rightSide > div.display {
+    height: 84%;
+}
+
+#display_1, #display_2 {
+    width: 100%;
+    height: 100%;
+}
+
+#display_2 {
+    display: none;
+    overflow: auto;
+}
+/*
+.input1 {
+    display: inline-block;
+}
+.input1 > input {
+    display: block;
+}
+*/
+
+.box {
+    background-color: rgba(255,255,255, 0.5);
+    border-radius: 20px;
+}
+
+.innerBox {
+    margin: 3%;
+    padding: 4%;
+    border: 2px solid white;
+    border-radius: 20px;
+}
+
+div > label {
+    display: inline-block;
+    width: 20%;
+    height: 100%;
+    text-align: center;
+    background: rgba(105, 105, 105, 0.5);
+    border-top-left-radius: 20px;
+    border-bottom-left-radius: 20px;
+    vertical-align: auto;
+}
+div > input[type="text"] {
+    font-family: 'Sunflower', sans-serif;
+    border: none;
+    padding: 0;
+    /*border-bottom: 2px solid white;*/
+    font-size: 1vw;
+    width: 70%;
+    height: 100%;
+    background-color: rgba(0,0,0,0);   
+}
+div > input[type="text"]:focus {
+    outline: none;
+}
+div > select {
+    font-family: 'Sunflower', sans-serif;
+    font-size: 1vw;
+    height: 100%;
+    border: none;
+    background-color: rgba(0,0,0,0);    
+}
+div > select:focus {
+    outline: none;
+}
+
+/* height를 상대적 크기로 지정 필요 */
+div.btn {
+    text-align: right;
+}
+button.nobackground {
+    --background: none; --color: hsl(241, 46%, 50%); --border: hsl(249, 71%, 36%);
+}
+
+div#result {
+    height: 25%;
+    overflow: auto;
+    margin-bottom: 10px;
+}
+div#check {
+    height: 30%;
+    margin-bottom: 10px;
+}
+
+div.check_info {
+    width: 20%;
+    height: 100%;
+    display: inline-block;
+    background-color: white;
+    border-radius: 10px;
+    margin-right: 2%;
+    text-align: center;
+    
+    position: relative;
+}
+div.check_info > span {
+    position: absolute;
+    left: 0;
+    top: 40%;
+    width: 100%;
+    font-weight: bold;
+    font-size: 1vw;
+}
+
+div#display2 > div.btn {
+    margin: 3%;
+}
+
+
+div.row {
+	position: relative;
+	width: 95%;
+    padding: 5% 0 5% 0;
+    margin: 0 auto;
+    background-color: white;
+    text-align: center;
+    border-radius: 10px;
+    border: 3px solid rgba(0,0,0,0);
+}
+
+div.col {
+    
+}
+
+select.receipt { /* 타입 */
+    display: inline-block;
+    margin-left: 10%;
+
+}
+select.receipt:focus {
+    outline: none;
+}
+div.receipt1 { /* 사용일자 */
+    text-align: right;
+    padding-right: 10%;
+}
+div.receipt2 { /* 상호명 */
+    text-align: center;
+}
+div.receipt3 { /* 금액 */
+    display: inline-block;
+    width: 50%;
+    text-align: right;
+}
+div.receipt3::after {
+    content: "원";
+}
+div.receipt4 { /* 영수증 매수 */
+    display: inline-block;
+    width: 10%;
+    position: absolute;
+    left: 55%;
+}
+div.receipt5 { /* 비고 */
+    width: 80%;
+    height: 10%;
+    margin: 0 auto;
+    margin-bottom: 5%;
+    border: 1px dashed black;
+}
+button.receipt {
+    --background: none; --color: hsl(0, 68%, 50%); --border: hsl(0, 83%, 55%);
+}
+
+h3.receipt1 {
+    width: 55%;
+    text-align: right;
+    display: inline-block;
+    position: absolute;
+    left: 0%;
+    margin: 0;
+}
+h3.receipt2 {
+    display: inline-block;
+    position: absolute;
+    left: 65%;
+    margin: 0;
+}
+h3.receipt_line {
+    width: 80%;
+    margin: 0 auto;
+}
+
+/*스크롤 바*/
+div::-webkit-scrollbar {
+    background-color: rgba(255, 255, 255, 0);
+    border: none;
+}
+div::-webkit-scrollbar-thumb {
+    background-color: rgba(105, 105, 105, 0.5);
+    border-radius: 20px;
+}
+div::-webkit-scrollbar-track {
+
+}
+div::-webkit-scrollbar-corner {
+    display: none;
+}
+
+/*
+#getFileName {
+    display: inline-block;
+    width: 70%;
+    background-color: rgba(219, 219, 219, 0.514);
+}
+#getPolishedRowBtn {
+    width: 25%;
+    font-size: 1vw;
+}
+*/
+/*
+<div class="inputBox clearfix">
+    <label></label>
+    <input>
+</div>
+
+.clearfix::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+.inputBox > label {
+    display: block;
+    float: left;
+}
+.inputBox > input {
+    display: block;
+    float: left;
+}
+*/

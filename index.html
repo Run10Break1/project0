@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sunflower:wght@500&display=swap" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+    <link href="tab.css" rel="stylesheet">
+    <script src="tab.js"></script>
+    <link href="button.css" rel="stylesheet">
+    <script src="button.js"></script>
+    <script src="dist/clipboard.js-master/dist/clipboard.min.js"></script>
+    <script src="dist/defaultFunction.js"></script>
+    <script src="dist/makeTable.js"></script>
+    <script src="dist/makeBoard.js"></script>
+    <script src="dist/makeFooter.js"></script>
+    <script src="dist/sort.js"></script>
+    <script src="glow.js"></script>
+    <script src="receiptBorder.js"></script>
+    <script>
+        var dataTunnel = {polishedRows: undefined};
+        var config = {
+            costType: ["도서구입비", "일반수용비", "기타경비", "회의(간담회)비", "교통비", "임차료(차량)", "숙박비", "소모품비", "답례품"]
+        }
+        window.onload = function() {
+                var costType = document.getElementById("cost_type");
+                var select = createSelect(config.costType);
+                costType.appendChild(select);
+
+                var rowInputBox = document.getElementById("row_input_box");
+                var divs = rowInputBox.getElementsByClassName("inputBox");
+                var inputBtn = document.getElementById("inputBtn");
+                var display1 = document.getElementById("display1");
+                var resultBtn = document.getElementById("resultBtn");
+                var result = document.getElementById("result");
+                var check = document.getElementById("check");
+                var serverBtn = document.getElementById("serverBtn");
+                //var listBtn = document.getElementById("listBtn");
+                var copyBtn = document.getElementById("copyBtn");
+                var getFileName = document.getElementById("getFileName");
+                var getPolishedRowBtn = document.getElementById("getPolishedRowBtn");
+                var statusBtn = document.getElementById("statusBtn");
+
+                // receipt 화면(초기화면)으로 이동
+                document.querySelector("#rightSide > .tab > button:nth-child(1)").click();
+                
+                // 자동 완성 비활성화
+                var inputBoxes = document.querySelectorAll(".inputBox > input, select");
+                for(var i = 0, len = inputBoxes.length; i < len; i++) {
+                    var t = inputBoxes[i];
+                    t.setAttribute("autocomplete", "off");
+                    t.addEventListener("focus", glow);
+                    t.addEventListener("blur", glowBack);
+                }
+                
+
+                inputBtn.addEventListener("click", function() {
+                    var initialValue = ["교통비", "", "", "", "", ""];
+
+                    var rowData = [];
+
+                    for(var i = 0, child = undefined; i < divs.length; i++) {
+                        child = divs[i].children[1];
+                        rowData.push(trim(i, child.value));
+                        child.value = initialValue[i]; // 입력된 값 초기화
+                    }
+
+                    var row = createRow(rowData);
+                    displayRow(row);
+
+                }, false);
+                
+                resultBtn.addEventListener("click", function() {
+                    clearDisplay(result);
+                    clearDisplay(check);
+                    displayScript();
+                    displayCheck();
+                }, false);
+
+                serverBtn.addEventListener("click", function() {
+                    send2Server(dataTunnel.polishedRows);
+                }, false);
+
+                statusBtn.addEventListener("click", function() {
+                    function foo(value) {
+                        var display_2 = document.getElementById("display_2");
+                        display_2.innerHTML = value;
+                    }
+
+                    asyncFunc(getStatusFromServer, foo);
+                }, false);
+                /*
+                listBtn.addEventListener("click", function() {
+                    asyncFunc(getListFromServer, function(value) {
+                        console.log(value);
+                    });
+                }, false);
+                */
+                /*
+                copyBtn.addEventListener("click", function() {
+                    var clipboard = new ClipboradJS();
+                }, false);
+                */
+               var clipboard = new ClipboardJS(copyBtn);
+
+                getPolishedRowBtn.addEventListener("click", function() {
+                    if(display1.children.length > 0) {
+                        if(!window.confirm("입력된 값들은 삭제됩니다. 그래도 계속하겠습니까?")) return;
+                        clearDisplay(display1);
+                    }
+
+                    // .txt를 제외해도 찾을 수 있도록
+                    var reg = /(.txt)$/;
+                    var fn = getFileName.value;
+                    var fileName = reg.test(fn) ? fn : fn + ".txt"; 
+
+                    function foo(value) {
+                        console.log("value:");
+                        console.log(value);
+                        // value = polishedRows
+                        var data = value["data"];
+
+                        for(var costType in data) {
+                            var rows = data[costType];
+                            for(var row of rows) {
+                                var t = createRow(row);
+                                displayRow(t);
+                            }
+                        }
+                    }
+
+                    function boo(value) {
+                        if(!value.includes(fileName)) {
+                            window.alert("해당하는 파일이 존재하지 않습니다.");
+                            return;
+                        }
+
+                        asyncFunc(getPolishedRowFromServer, foo, fileName);
+                    }
+
+                    asyncFunc(getListFromServer, boo);
+
+                }, false);
+
+                function getRows() {
+                    var rows = [];
+                    var reg = /(\d+)$/;
+                    var rawRows = display1.getElementsByClassName("row");
+                    for(var i = 0, ilen = rawRows.length; i < ilen; i++) {
+                        var rawRow = rawRows[i].getElementsByClassName("col");
+                        var t = new Array();
+                        t[0] = rawRows[i].getElementsByClassName("costType")[0].value;
+                        for(var j = 0, jlen = rawRow.length, idx = undefined; j < jlen; j++) {
+                            idx = reg.exec(rawRow[j].className)[0];
+                            t[idx] = rawRow[j].innerText;
+                        }
+                        rows.push(t);
+                    }
+
+                    return rows;
+                }
+                function polishRows(yunsuNum, sosok, sign, rows) {
+                    var names = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+                    var t = []; // metaData에 추가된 지출 타입을 저장
+
+                    function defaultData(yunsuNum, sosok, sign) {
+                        var metaData = {yunsuNum, sosok, sign};
+                        var data = {};
+
+                        var default_data = new Map();
+                        default_data.set("일비", [["일비", "", "일비(5일)", "100,000", "", "증빙 불필요"]]);
+                        
+                        var default_metaData = new Map();
+                        default_metaData.set("일비", {name: "A", costSum: "100,000"});
+
+                        for(var [key, value] of default_data) {
+                            data[key] = value;
+                        }
+                        for(var [key, value] of default_metaData) {
+                            metaData[key] = value;
+                        }
+                        
+                        var dataSize = defaultData.length;
+
+                        return [data, metaData, dataSize];
+                    }
+
+                    var [data, metaData, dataSize] = defaultData(yunsuNum, sosok, sign);
+
+                    var len = rows.length;
+                    for(var i = 0, j = 0; i < len; i++) {
+                        var row = rows[i];
+                        var idx = row[0];
+
+                        if(!(idx in data)) {
+                            metaData[idx] = {
+                                name: "소계(" + names[j++] + ")",
+                                costSum: 0
+                            };
+                            t.push(idx);
+
+                            data[idx] = [];
+                            dataSize++;
+                        }
+
+                        metaData[idx].costSum += toNumber(row[3]);
+
+                        data[idx].push(row);
+                    }
+
+                    // 123211421 을 "123,211,421" 형식으로 변환
+                    for(var i of t) metaData[i].costSum = trimCost(new String(metaData[i].costSum));
+                    
+                    metaData["dataSize"] = dataSize;
+
+                    sortData(data); // 데이터를 날짜에 따라 분류
+
+                    return {
+                        metaData,
+                        data
+                    };
+
+                }
+                function getScript(polishedRows) {
+                    /*
+                    {
+                        # cost는 모두 "xx,xxx,xxx" 형식임
+                        metaData: {
+                            yunsuNum: ~,
+                            sosok: ~,
+                            sign: ~ ,
+                            dataSize: ~,
+                            교통비: {
+                                name: ,
+                                costSum: 
+                            },
+                            사례품: {
+                                ...
+                            },
+                            ...
+                        },
+                        data: {
+                            교통비: [[선택, 날짜, 상호명, 금액, 매수, 비고], [],...],
+                            사례품: [[], [],...],
+                            ...
+                        }
+                    }
+                    형식의 데이터가 들어와야 함
+                    */
+                    console.log(polishedRows);
+                    var costSum = 0;
+
+                    var dataSize = polishedRows.metaData.dataSize;
+                    var script = defaultFunction_script();
+                    script += makeTable_script();
+                    script += makeBoard_script();
+                    script += makeFooter_script();
+
+                    // table
+                    script += "makeTable(" + (dataSize * 2 + 2) + ");";
+
+                    // board
+                    for(var id in polishedRows.data) {
+                        var mId = id;
+                        var info = polishedRows.data[id];
+                        
+                        costSum += toNumber(polishedRows.metaData[id].costSum);
+                        script += variableToScript(mId, polishedRows.metaData[id], info);
+                        script += "makeBoard(mId, sumup, info);";
+                    }
+                    
+                    // footer
+                    var names = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+                    names.length = dataSize;
+                    var sumup = {
+                        name: "계(" + names.join("+") + ")",
+                        costSum: trimCost(new String(costSum))
+                    };
+                    script += "var sumup = " + JSON.stringify(sumup) + ";";
+                    script += "makeFooter(sumup);";
+
+                    return script;
+                }
+
+                function displayScript() {
+                    var rows = getRows();
+                    var yunsuNum = document.getElementById("yunsuNum").value;
+                    var sosok = document.getElementById("sosok").value;
+                    var sign = document.getElementById("sign").value;
+
+                    var polishedRows = polishRows(yunsuNum, sosok, sign, rows);
+                    dataTunnel.polishedRows = polishedRows;
+
+                    var script = getScript(polishedRows);
+                    result.innerText = script;
+                }
+                function displayCheck() {
+                    var metaData = dataTunnel.polishedRows.metaData;
+                    //var properties = new Map();
+                    var className = "check_info";
+
+                    var totalCost = 0;
+                    var t = [];
+                    var innerHTML;
+                    for(var dataName in metaData) {
+                        if(!config.costType.includes(dataName)) continue;
+                        var data = metaData[dataName];
+                        var cost = data["costSum"];
+
+                        totalCost += toNumber(cost);
+
+                        innerHTML = "<span>" + dataName + "</br><span class=&quot;check_cost&quot;>" + cost + "</span></span>";
+                        // TODO: check 구현
+
+                        var div = createInDiv(innerHTML, null, className);
+                        t.push(div);
+
+                    }
+
+                    // 총계가 제일 중요하니 맨 앞에 배치
+                    innerHTML = "<span>총계<br>" + trimCost(new String(totalCost)) + "</span>";
+                    check.appendChild(createInDiv(innerHTML, null, className, "check_total"));
+
+                    for(var div of t) {
+                        check.appendChild(div);
+                    }
+
+                }
+
+                function variableToScript(mId, metaData, info) {
+                    // var sumup = {};
+                    // var info = [[], [],...]; 로 나타내야 함
+                    var varScript = "var mId = '" + mId + "';";
+                    varScript += "var sumup = " + JSON.stringify(metaData) + ";";
+                    varScript += "var info = " + JSON.stringify(info) + ";";
+                    return varScript;
+
+                }
+
+                function trim(idx, rawValue) {
+                    // idx
+                    // 1: 사용일자
+                    // 2: 상호명
+                    // 3: 금액
+                    // 4: 영수증 매수
+                    // 5: 비고
+                    if(idx == 1) return trimDate(rawValue);
+                    else if(idx == 3) return trimCost(rawValue);
+                    else return rawValue;
+                }
+                function trimDate(rawDate) {
+                    // xxxx.xx.xx
+                    //      xx.xx
+                    // xxxx. x. x
+                    //   xx.xx.xx
+                    var reg = /\d+/g;
+                    var date = rawDate.match(reg);
+                    var t = [];
+                    t.push(("20" + date[0]).slice(-4)); // year
+                    t.push(("0" + date[1]).slice(-2)); // month
+                    t.push(("0" + date[2]).slice(-2)); // day
+                    
+                    return t.join(".") + ".";
+                }
+                function trimCost(rawCost) {
+                    var reg = /\d+/g;
+                    var cost = new Number(rawCost.match(reg).join(""));
+                    var t = [];
+                    while(cost >= 1000) {
+                        t.unshift(new String(cost % 1000).padStart(3,"0"));
+                        cost = Math.floor(cost / 1000);
+                    }
+                    
+                    t.unshift(cost);
+                    return t.join(",");
+                }
+
+                function toNumber(value) {
+                    // xx,xxx,xxx,xxx 형식의 값
+                    var num = 0;
+                    var t = value.split(",");
+                    for(var w = 1; t.length != 0; w *= 1000) num += w * t.pop();
+                    
+                    return num;
+                }
+
+                function sortData(data) {
+                    for(var id in data) {
+                        sortObject(1, data[id]);
+                    }
+                }
+
+                function clearDisplay(display) {
+                    var childs = display.children;
+                    var len = childs.length;
+                    for(var i = 0; i < len; i++) {
+                        var child = childs[0];
+                        display.removeChild(child);
+                    }
+                }
+                function displayRow(row) {
+                    display1.insertBefore(row, display1.children[0]);
+                }
+                function createRow(rowData) {
+                    // rowData = [, , , ,]
+                    //var widths = [25.37, 30.77, 38.76, 27.95, 23.50, 23.50];
+                    /*
+                    var row = createOutDiv();
+                    var select = createSelect(config.costType);
+                    select.value = rowData[0];
+                    select.classList.add("receipt");
+                    row.appendChild(select);
+                    for(var i = 1, len = rowData.length; i < len; i++) {
+                        var t = createInDiv(rowData[i], i);
+                        row.appendChild(t);
+                    }
+                    */
+
+                    var row = createOutDiv();
+
+                    var map = new Map();
+                    map.set("contentEditable", "true");
+
+                    var tdiv = document.createElement("div");
+                    tdiv.style.position = "relative";
+                    tdiv.style.height = "2em";
+                    var text = document.createElement("h3");
+                    text.classList.add("receipt1");
+                    text.innerText = "영수증 (";
+                    tdiv.appendChild(text);
+                    tdiv.appendChild(createInDiv(rowData[4], map, "col", "receipt4"));
+                    text = document.createElement("h3");
+                    text.classList.add("receipt2");
+                    text.innerText = " 매)";
+                    tdiv.appendChild(text);
+                    row.appendChild(tdiv);
+        
+                    row.appendChild(createLine("dotted", "5%"));
+                    row.appendChild(createInDiv(rowData[2], map, "col", "receipt2"));
+                    row.appendChild(createInDiv(rowData[1], map, "col", "receipt1"));
+                    row.appendChild(createLine("dotted", "5%"));
+                    var select = createSelect(config.costType);
+                    select.value = rowData[0];
+                    row.appendChild(select);
+                    row.appendChild(createInDiv(rowData[3], map, "col", "receipt3"));
+                    row.appendChild(createLine("double", "1%"));
+                    row.appendChild(createLine("double", "5%"));
+                    row.appendChild(createInDiv(rowData[5], map, "col", "receipt5"));
+
+
+                    // 삭제 버튼
+                    var removeBtn = document.createElement("button");
+                    removeBtn.innerText = "삭제";
+                    removeBtn.classList.add("receipt");
+                    removeBtn.addEventListener("click", function(e) {
+                        e.target.parentNode.parentNode.removeChild(e.target.parentNode);
+                    }, false);
+                    row.appendChild(removeBtn);
+
+                    return row;
+                }
+
+                function createLine(borderStyle, marginBottom) {
+                    var line = document.createElement("h3");
+                    line.classList.add("receipt_line");
+                    line.style.borderBottomStyle = borderStyle;
+                    line.style.marginBottom = marginBottom;
+                    return line;
+                }
+        
+                function createOutDiv() {
+                    var div = document.createElement("div");
+                    div.style.marginBottom = "10px";
+                    div.style.clear = "left";
+                    div.classList.add("row");
+                    
+                    div.addEventListener("click", function(e) {
+                        var receipts = document.querySelectorAll("div.row");
+                        for(var receipt of receipts) receipt.style.border = "3px solid rgba(255,255,255,0.5)";
+                        selectedReceipt(e);
+                    });
+                    
+
+                    return div;
+                }
+                function createInDiv(innerHTML, properties, ...classNames) {
+                    var div = document.createElement("div");
+
+                    if(properties instanceof Map) {
+                        for(var [key, value] of properties) {
+                            div.setAttribute(key, value);
+                        }
+                    }
+
+                    for(var className of classNames) {
+                        div.classList.add(className);
+                    }
+                    
+                    div.innerHTML = innerHTML;
+
+                    return div;
+                }
+                function createSelect(costTypes) {
+                    var select = document.createElement("select");
+                    select.setAttribute("class", "costType");
+                    for(var i = 0, len = costTypes.length; i < len; i++) {
+                        var option = document.createElement("option");
+                        option.setAttribute("value", costTypes[i]);
+                        option.innerText = costTypes[i];
+                        select.appendChild(option);
+                    }
+                    return select;
+                }
+            }
+    </script>
+    <script>
+        // 여기의 대부분 함수는 비동기임을 잊지 말자.
+        async function asyncFunc(f, afterFunc, ...args) {
+                var t = asyncWrapper(f);
+                var value = await t(...args);
+
+                // 비동기 처리 후 실행할 함수
+                afterFunc(value);
+        }
+
+        function asyncWrapper(f) {
+            return function() {
+                var args = arguments;
+                return new Promise(function(resolve, reject) {
+                    f(...args, resolve);
+                });
+            }
+        }
+
+        function send2Server(polishedRows, resolve) {
+            var xhr = new XMLHttpRequest();
+            
+            xhr.onreadystatechange = function() {
+                if(xhr.readyState == xhr.DONE) {
+                    var response = xhr.responseText;
+                    
+                    if(resolve != undefined) {
+                        resolve(response);
+                    }
+                    return response;
+                }
+            }
+            
+            xhr.open("POST", "http://101.101.219.169:8080/test/receipt/send");
+            xhr.setRequestHeader("Content-type", "application/json");
+            xhr.send(JSON.stringify(polishedRows));
+        }
+
+        function getListFromServer(resolve) {
+            var xhr = new XMLHttpRequest();
+            
+            xhr.onreadystatechange = function() {
+                if(xhr.readyState == xhr.DONE) {
+                    var list = JSON.parse(xhr.responseText);
+                    
+                    if(resolve != undefined) {
+                        resolve(list);
+                    }
+                    return list;
+                }
+            }
+            xhr.open("GET", "http://101.101.219.169:8080/test/receipt/receive");
+            xhr.send();
+        }
+        function getPolishedRowFromServer(fileName, resolve) {
+            // yunsuNum_sosok 형식의 fileName을 받음
+            // ex) 중013_홍길동
+            var xhr = new XMLHttpRequest();
+
+            xhr.onreadystatechange = function() {
+                if(xhr.readyState == xhr.DONE) {
+                    var polishedRows = JSON.parse(xhr.responseText);
+                    
+                    if(resolve != undefined) {
+                        resolve(polishedRows);
+                    }
+                    return polishedRows;
+                }
+            }
+            xhr.open("POST", "http://101.101.219.169:8080/test/receipt/receive");
+            xhr.setRequestHeader("Content-Type", "text/plain");
+            xhr.send(fileName);
+        }
+        function getStatusFromServer(resolve) {
+            var xhr = new XMLHttpRequest();
+
+            xhr.onreadystatechange = function() {
+                if(xhr.readyState == xhr.DONE) {
+                    var status = xhr.responseText;
+
+                    if(resolve != undefined) {
+                        resolve(status);
+                    }
+
+                    return status;
+                }
+            }
+            xhr.open("GET", "http://101.101.219.169:8080/test/receipt/status");
+            xhr.send();
+        }
+    </script>
+</head>
+<body>
+    <div id="leftSide" class="box">
+        <div id="display_1">
+            <div class="innerBox">
+                <div class="inputBox">
+                    <label for="yunsuNum">연수번호</label>
+                    <input type="text" id="yunsuNum">
+                </div>
+                <div class="inputBox">
+                    <label for="sosok">소속</label>
+                    <input type="text" id="sosok">
+                </div>
+                <div class="inputBox">
+                    <label for="sign">성명</label>
+                    <input type="text" id="sign">
+                </div>
+            </div>
+            <div id="row_input_box" class="innerBox">
+                <div class="inputBox" id="cost_type">
+                    <label>타입</label>
+                </div>
+                <div class="inputBox">
+                    <label for="date">사용일자</label>
+                    <input type="text" id="date">
+                </div>
+                <div class="inputBox">
+                    <label for="gage">상호명</label>
+                    <input type="text" id="gage">
+                </div>
+                <div class="inputBox">
+                    <label for="cost">금액</label>
+                    <input type="text" id="cost">
+                </div>
+                <div class="inputBox">
+                    <label for="receiptCnt">영수증 매수</label>
+                    <input type="text" id="receiptCnt">
+                </div>
+                <div class="inputBox">
+                    <label for="other">비고</label>
+                    <input type="text" id="other">
+                </div>
+                <div class="btn">
+                    <button id="inputBtn">제출</button>
+                </div>
+            </div>
+            <div class="innerBox">
+                <div class="inputBox">
+                    <label for="getFileName">파일 이름</label>
+                    <input type="text" id="getFileName" placeholder="ex) &quot;중000_홍길동&quot;">
+                </div>
+                <div class="btn">
+                    <button id="getPolishedRowBtn">가져오기</button>
+                </div>
+            </div>
+        </div>
+        <div id="display_2" class="left_side"></div>
+    </div>
+    <div id="rightSide" class="box">
+        <div class="tab">
+            <button class="tablinks" onclick="openTab(event, 'display1')">영수증</button>
+            <button class="tablinks" onclick="openTab(event, 'display2')" id="resultBtn">스크립트</button>
+            <button class="tablinks" onclick="openTab(event, 'display3', 'display_2')" id="statusBtn">상황판</button>
+        </div>
+         <!-- tab content -->
+        <div id="display1" class="tabcontent display" style="overflow: auto">
+        </div>
+        <div id="display2" class="tabcontent display">
+            <div id="result" class="innerBox"></div>
+            <div id="check" class="innerBox"></div>
+            <div class="btn">
+                <button id="copyBtn" data-clipboard-target="div#result">복사</button>
+                <button id="serverBtn">저장하기</button>
+            </div>
+        </div>
+        <div id="display3" class="tabcontent display">
+        </div>
+    </div>
+
+</body>
+</html>

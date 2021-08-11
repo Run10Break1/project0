@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script>
+        window.onload = function() {
+            var upload = document.getElementById("upload");
+            upload.addEventListener("change", function() {
+                console.log("upload start");
+                var file = upload.files[0];
+                var formData = new FormData();
+                formData.append("upload_file", file);
+
+                var xhr = new XMLHttpRequest();
+                xhr.readystatechange = function() {
+                    if(xhr.readyState == xhr.DONE) {
+                        console.log("success");
+                    }
+                }
+                xhr.open("POST", "http://101.101.219.169:8080/test/receipt/upload");
+                //xhr.setRequestHeader("Content-Type", "multipart/form-data");
+                xhr.send(formData);
+            }, false);
+        }
+    </script>
+</head>
+<body>
+    <input type="file" id="upload" accept=".csv">
+</body>
+</html>
